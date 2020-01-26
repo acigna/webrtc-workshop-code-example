@@ -1,0 +1,192 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <base href="/">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" >
+    <title>Tp 4 VOIP TechWeb</title>
+    <style media="screen">
+            /*  SECTIONS  */
+        .body {
+          background-color: #20ccd8;
+        }
+        .btn
+        {
+
+
+            padding: 4px 7px;
+            border-radius: 6px;
+            border : 2px solid #3494AC;
+            background-color: #36A83E;
+            font-style: bold;
+            font-size: 1em;
+        }
+
+
+        .btn:hover
+        {
+
+            padding: 4px 7px;
+            border-radius: 6px;
+            border : 2px solid #3494AC;
+            font-style: bold;
+            font-size: 1em;
+            background-color: #db150a;
+
+
+
+        }
+        .section {
+        clear: both;
+        padding: 0px;
+        margin: 0px;
+        }
+
+        /*  COLUMN SETUP  */
+        .col {
+        display: block;
+        float:left;
+        margin: 1% 0 1% 1.6%;
+        }
+        .col:first-child { margin-left: 0; }
+
+        .group:before,
+        .group:after { content:""; display:table; }
+        .group:after { clear:both;}
+        .group { zoom:1; /* For IE 6/7 */ }
+
+        .span_1_of_5 {
+          width: 18.72%;
+        }
+
+        @media only screen and (max-width: 480px) {
+          .col {  margin: 1% 0 1% 0%; }
+          .span_1_of_5 { width: 100%; }
+        }
+        h3 { color: #083887; font-family: "Great Vibes", cursive; font-size: 35px; line-height: 160px; font-weight: normal; margin-bottom: 0px; margin-top: 40px; text-align: center; text-shadow: 0 1px 1px #fff; }
+        h5 { color: #470e03; font-family: 'Droid serif', serif; font-size: 30px; font-weight: 400; font-style: italic; line-height: 44px; margin: 0 0 12px; text-align: center; }
+    </style>
+</head>
+
+<body class="body">
+  <div class="section group">
+      <div class="col span_1_of_5">
+      </div>
+      <div class="col span_1_of_5">
+        <h5>Video Auto play</h5>
+        <br><br>
+        <video width="320" id="video1" autoplay muted >
+        </video>      </div>
+      <div class="col span_1_of_5">
+        <H3 style="text-align:center">Videos</H3>
+
+      </div>
+      <div class="col span_1_of_5">
+        <h5>Video Auto play</h5>
+       <br><br>
+      <video width="320" id="video2" autoplay muted>
+      </video>
+      </div>
+      <div class="col span_1_of_5">
+      </div>
+</div>
+  <div class="row">
+    <div style="float:left">
+
+
+    </div>
+    <div style="float:right">
+
+  </div>
+  </div>
+  <br><br>
+  <H3 style="text-align:center">Text Areas</H3>
+  <div class="section group">
+    <div class="col span_1_of_5">
+    </div>
+    <div class="col span_1_of_5">
+      <h5>SDP local</h5>
+   <textarea name="name" id="local" rows="8" cols="45" ></textarea>
+   <br>
+   <button type="button" id="button1" class="btn" name="button">Génerer SDP Local</button>
+    </div>
+    <div class="col span_1_of_5">
+    </div>
+    <div class="col span_1_of_5">
+      <h5>SDP Distance</h5>
+      <textarea name="name" id="distant" rows="8" cols="45"></textarea>
+      <br>
+      <button type="button" id="button2" class="btn" name="button">Traiter SDP distant</button>
+    </div>
+    <div class="col span_1_of_5">
+    </div>
+       <span style="float:left">
+
+    </span>
+       <span style="float:left">
+
+    </span>
+  </div>
+
+
+</body>
+<script type="text/javascript">
+var videoStream;
+navigator.mediaDevices.getUserMedia({video:true,audio:true}).then(function(localStream){
+      document.getElementById("video1").srcObject=localStream;
+      videoStream = localStream;
+    });
+
+//Stream = Track1 (audio) m= + Track2 (video) m=
+
+var peerConnection = new RTCPeerConnection({iceServers:[]});
+
+peerConnection.onicecandidate = function () {
+    document.getElementById('local').textContent=peerConnection.localDescription.sdp;
+}
+
+peerConnection.ontrack = function ( e ) {
+  document.getElementById('video2').srcObject=e.streams[0];
+}
+
+document.getElementById('button1').addEventListener('click', function ( e ) {
+  peerConnection.onnegotiationneeded = function() {
+    peerConnection.createOffer().then(function( Offer ) {
+      document.getElementById("local").textContent=Offer.sdp;
+      return peerConnection.setLocalDescription(Offer);
+    });
+  };
+
+  videoStream.getTracks().forEach(function ( track ) {
+    peerConnection.addTrack( track, videoStream );    
+  });
+
+});
+
+document.getElementById('button2').addEventListener('click', function ( e ) {
+  var DistantSdp=document.getElementById('distant').value;
+  var LocalSdp=document.getElementById('local').value.trim();
+
+  if(!LocalSdp) {
+    //Generer une réponse
+     var desc = new RTCSessionDescription({type:"offer",sdp:DistantSdp});
+     peerConnection.setRemoteDescription( desc ).then(function ( ) {
+        videoStream.getTracks().forEach(function ( track ) {
+          peerConnection.addTrack( track, videoStream );   
+        });
+        return peerConnection.createAnswer();
+     }).then(function ( answer ) {
+        document.getElementById("local").textContent=answer.sdp;
+        return peerConnection.setLocalDescription(answer);
+     });
+  } else {
+    //Je ne genere pas un sdp local, je traite la réponse.
+    var desc = new RTCSessionDescription({type:"answer",sdp:DistantSdp});
+    peerConnection.setRemoteDescription(desc);
+  }
+
+});
+
+</script>
+</html>
